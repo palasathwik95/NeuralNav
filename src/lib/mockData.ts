@@ -17,11 +17,11 @@ export const MOCK_PROFILE: Profile = {
 };
 
 export const MOCK_PATH: Waypoint[] = [
-  { id: "1", title: "JS fundamentals refresh", status: "done", weeks: 1 },
-  { id: "2", title: "Modern React patterns", status: "active", weeks: 2 },
-  { id: "3", title: "State management deep dive", status: "upcoming", weeks: 2 },
-  { id: "4", title: "Accessibility foundations", status: "upcoming", weeks: 1 },
-  { id: "5", title: "Capstone project", status: "locked", weeks: 3 },
+  { id: "1", title: "JS fundamentals refresh", status: "done", weeks: 1, reason: "Your JavaScript skill score already shows you've got this covered." },
+  { id: "2", title: "Modern React patterns", status: "active", weeks: 2, reason: "Starting here — it builds directly on what you already know and moves you toward your goal." },
+  { id: "3", title: "State management deep dive", status: "upcoming", weeks: 2, reason: "Builds on React patterns and keeps you moving toward becoming a frontend developer." },
+  { id: "4", title: "Accessibility foundations", status: "upcoming", weeks: 1, reason: "Rounds out your frontend fundamentals before the capstone." },
+  { id: "5", title: "Capstone project", status: "locked", weeks: 3, reason: "Ties everything together into a portfolio-ready project." },
 ];
 
 export const MOCK_SKILLS: SkillScore[] = [

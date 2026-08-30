@@ -1,13 +1,14 @@
 "use client";
 
-import { Flame, Clock, Sparkles, Check, X } from "lucide-react";
+import { Flame, Clock, Sparkles, Check, X, RefreshCw } from "lucide-react";
 import TrailMap from "./TrailMap";
+import PathDetailsList from "./PathDetailsList";
 import SkillRadarChart from "./SkillRadarChart";
 import ActivityChart from "./ActivityChart";
 import StatPill from "./StatPill";
 import { supabase, DEMO_USER_ID, isSupabaseConfigured } from "@/lib/supabaseClient";
 import { Profile, Waypoint, SkillScore, ActivityDay, Suggestion } from "@/lib/types";
-import { Dispatch, SetStateAction } from "react";
+import { Dispatch, SetStateAction, useState } from "react";
 
 interface DashboardProps {
   profile: Profile;
@@ -20,6 +21,31 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ profile, path, setPath, skills, activity, suggestions, setSuggestions }: DashboardProps) {
+  const [generating, setGenerating] = useState(false);
+
+  const generatePath = async () => {
+    setGenerating(true);
+    try {
+      const res = await fetch("/api/generate-path", { method: "POST" });
+      const data = await res.json();
+      if (data.waypoints) {
+        setPath(
+          data.waypoints.map((w: { moduleId: string; title: string; status: Waypoint["status"]; weeks: number; reason: string }) => ({
+            id: w.moduleId,
+            title: w.title,
+            status: w.status,
+            weeks: w.weeks,
+            reason: w.reason,
+          }))
+        );
+      }
+    } catch (err) {
+      console.error("Failed to generate path", err);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   const acceptSuggestion = async (s: Suggestion) => {
     const newWaypoint: Waypoint = { id: `local-${Date.now()}`, title: s.title, status: "upcoming", weeks: 1 };
     setPath((p) => [...p, newWaypoint]);
@@ -85,11 +111,34 @@ export default function Dashboard({ profile, path, setPath, skills, activity, su
 
       {/* Trail map */}
       <div className="rounded-2xl p-5 bg-trail-surface border border-trail-border">
-        <div className="font-display font-semibold text-base text-trail-text">Your path</div>
-        <div className="font-sans text-[12.5px] text-trail-muted mb-1">
-          Waypoints from the recommendation engine — updated as you and Pathfinder talk.
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="font-display font-semibold text-base text-trail-text">Your path</div>
+            <div className="font-sans text-[12.5px] text-trail-muted mb-1">
+              Generated from your goal and current skills — updated as you and Pathfinder talk.
+            </div>
+          </div>
+          <button
+            onClick={generatePath}
+            disabled={generating}
+            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 shrink-0 bg-trail-surface2 border border-trail-borderStrong font-sans text-[12.5px] text-trail-text disabled:opacity-60"
+          >
+            <RefreshCw size={13} className={generating ? "animate-spin" : ""} />
+            {path.length === 0 ? "Generate path" : "Regenerate"}
+          </button>
         </div>
-        <TrailMap path={path} />
+        {path.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-10 text-center">
+            <div className="font-sans text-sm text-trail-muted max-w-xs">
+              No path yet — generate one from your current goal and skills to get started.
+            </div>
+          </div>
+        ) : (
+          <>
+            <TrailMap path={path} />
+            <PathDetailsList path={path} />
+          </>
+        )}
       </div>
 
       {/* Mentor suggestions */}
