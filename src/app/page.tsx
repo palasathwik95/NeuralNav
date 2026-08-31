@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Compass, MessageCircle, LayoutGrid, Edit2 } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Compass, MessageCircle, LayoutGrid, Edit2, Zap } from "lucide-react";
 import ChatPanel from "@/components/ChatPanel";
 import Dashboard from "@/components/Dashboard";
 import GoalSetup from "@/components/GoalSetup";
@@ -12,7 +12,21 @@ import { ProfileDelta, PathSuggestionPayload } from "@/lib/types";
 export default function Page() {
   const [tab, setTab] = useState<"chat" | "dashboard">("chat");
   const [showGoalSetup, setShowGoalSetup] = useState(false);
+  const [generatingPath, setGeneratingPath] = useState(false);
+  const [showPathRegeneratePrompt, setShowPathRegeneratePrompt] = useState(false);
+  const previousGoalRef = useRef<string>("");
   const { profile, setProfile, path, setPath, skills, activity, suggestions, setSuggestions } = useTrailheadData();
+
+  // Track goal changes
+  useEffect(() => {
+    if (!previousGoalRef.current) {
+      previousGoalRef.current = profile.goal;
+    } else if (previousGoalRef.current !== profile.goal) {
+      // Goal changed - show regenerate prompt
+      setShowPathRegeneratePrompt(true);
+      previousGoalRef.current = profile.goal;
+    }
+  }, [profile.goal]);
 
   const applyProfileDelta = async (delta: ProfileDelta) => {
     setProfile((p) => ({ ...p, ...delta, interests: delta.interests ?? p.interests }));
@@ -22,6 +36,30 @@ export default function Page() {
 
   const applyPathSuggestion = (s: PathSuggestionPayload) => {
     setSuggestions((sg) => [...sg, { id: `local-${Date.now()}`, title: s.title, reason: s.reason }]);
+  };
+
+  const regeneratePath = async () => {
+    setGeneratingPath(true);
+    try {
+      const res = await fetch("/api/generate-path", { method: "POST" });
+      const data = await res.json();
+      if (data.waypoints) {
+        setPath(
+          data.waypoints.map((w: any) => ({
+            id: w.moduleId,
+            title: w.title,
+            status: w.status,
+            weeks: w.weeks,
+            reason: w.reason,
+          }))
+        );
+        setShowPathRegeneratePrompt(false);
+      }
+    } catch (err) {
+      console.error("Failed to regenerate path", err);
+    } finally {
+      setGeneratingPath(false);
+    }
   };
 
   const handleGoalSet = async (goal: string) => {
@@ -36,6 +74,9 @@ export default function Page() {
         .update({ goal, updated_at: new Date().toISOString() })
         .eq("user_id", DEMO_USER_ID);
     }
+
+    // Auto-regenerate path for new goal
+    setTimeout(() => regeneratePath(), 300);
   };
 
   return (
@@ -92,15 +133,48 @@ export default function Page() {
         {tab === "chat" ? (
           <ChatPanel profile={profile} onProfileDelta={applyProfileDelta} onPathSuggestion={applyPathSuggestion} />
         ) : (
-          <Dashboard
-            profile={profile}
-            path={path}
-            setPath={setPath}
-            skills={skills}
-            activity={activity}
-            suggestions={suggestions}
-            setSuggestions={setSuggestions}
-          />
+          <>
+            {showPathRegeneratePrompt && (
+              <div className="mb-4 p-4 rounded-2xl bg-trail-amber/10 border border-trail-amberDark flex items-start justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-5 h-5 rounded-full bg-trail-amber flex items-center justify-center shrink-0 mt-0.5">
+                    <Zap size={12} className="text-trail-amberText" />
+                  </div>
+                  <div>
+                    <div className="font-medium text-trail-text">Path out of sync</div>
+                    <div className="font-sans text-sm text-trail-muted mt-0.5">
+                      Your goal changed to <span className="font-semibold text-trail-text">"{profile.goal}"</span>. Generate a new path tailored to this goal?
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <button
+                    onClick={() => regeneratePath()}
+                    disabled={generatingPath}
+                    className="px-3 py-1.5 rounded-lg bg-trail-amber text-trail-amberText hover:bg-trail-amber/90 disabled:opacity-60 font-medium text-sm transition-colors"
+                  >
+                    {generatingPath ? "Generating..." : "Generate"}
+                  </button>
+                  <button
+                    onClick={() => setShowPathRegeneratePrompt(false)}
+                    className="px-3 py-1.5 rounded-lg bg-trail-surface2 text-trail-text hover:bg-trail-surface border border-trail-border font-medium text-sm transition-colors"
+                  >
+                    Keep current
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <Dashboard
+              profile={profile}
+              path={path}
+              setPath={setPath}
+              skills={skills}
+              activity={activity}
+              suggestions={suggestions}
+              setSuggestions={setSuggestions}
+            />
+          </>
         )}
       </div>
     </div>
