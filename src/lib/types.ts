@@ -17,6 +17,7 @@ export interface Waypoint {
   title: string;
   status: WaypointStatus;
   weeks: number;
+  reason?: string;
 }
 
 export interface SkillScore {

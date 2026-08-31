@@ -1,10 +1,11 @@
 # Trailhead
 
-Personalized Learning Path Recommender — this repo currently implements two
+Personalized Learning Path Recommender — this repo currently implements three
 of the six product features:
 
 - **Conversational Interface** — `src/components/ChatPanel.tsx` + `src/app/api/chat/route.ts`
-- **Student Dashboard** — `src/components/Dashboard.tsx`, `TrailMap.tsx`, `SkillRadarChart.tsx`, `ActivityChart.tsx`
+- **Student Dashboard** — `src/components/Dashboard.tsx`, `TrailMap.tsx`, `PathDetailsList.tsx`, `SkillRadarChart.tsx`, `ActivityChart.tsx`
+- **Learning Path Generator** — `src/lib/curriculum.ts`, `src/lib/pathGenerator.ts`, `src/app/api/generate-path/route.ts`
 
 Stack: Next.js (App Router) + React + TypeScript + Tailwind CSS + Supabase
 (Postgres) + OpenAI API + Recharts, deployable to Vercel.
@@ -25,20 +26,46 @@ Env vars needed (see `.env.example`):
 - `OPENAI_API_KEY`, `OPENAI_MODEL` (defaults to `gpt-4o-mini`)
 
 Run `supabase/schema.sql` against your Supabase project to create the
-tables. If Supabase env vars aren't set yet, the app falls back to mock
-data in `src/lib/mockData.ts` so the Chat + Dashboard stay demoable
-independent of backend progress.
+tables, then `supabase/002_add_reason_to_waypoints.sql` for the
+Path Generator's `reason` column. If Supabase env vars aren't set yet, the
+app falls back to mock data in `src/lib/mockData.ts` so the Chat + Dashboard
+stay demoable independent of backend progress.
 
 ## How this fits the six-feature build
 
 | Feature | Owner | This repo's role |
 |---|---|---|
-| Conversational Interface | **You (today)** | `ChatPanel.tsx` + `/api/chat` |
-| Student Dashboard | **You (today)** | `Dashboard.tsx` + chart/trail components |
+| Conversational Interface | **You** | `ChatPanel.tsx` + `/api/chat` |
+| Student Dashboard | **You** | `Dashboard.tsx` + chart/trail components |
+| Learning Path Generator | **You** | `pathGenerator.ts`, `curriculum.ts` + `/api/generate-path` |
 | Profile Engine | Teammate | Reads/writes the `profiles` table |
 | Recommendation Engine | Teammate | Writes `skill_scores`, feeds suggestion logic |
-| Learning Path Generator | Teammate | Writes `path_waypoints` (initial path) |
 | AI Assistant (broader) | Teammate | May extend the same `/api/chat` route or add new ones |
+
+### How the Learning Path Generator works
+
+`POST /api/generate-path` (triggered by the "Generate path" / "Regenerate"
+button on the Dashboard):
+
+1. Reads the student's `profiles` row and `skill_scores`.
+2. `detectTrack()` maps their stated goal to one of `frontend` / `backend`
+   / `data` / `general` by keyword match.
+3. `generatePath()` — a **pure, deterministic function, no AI involved** —
+   filters the curated `CATALOG` (see `curriculum.ts`) to that track,
+   topologically sorts it by prerequisites, and marks each module `done`
+   (skill score already ≥ 70), `active` (the next thing to do), `upcoming`,
+   or `locked`, with weeks-per-module scaled by their stated weekly hours.
+4. Only *after* the structure is locked in, OpenAI is asked to rewrite each
+   module's one-line "reason" text to match the student's interests/style —
+   it's explicitly told it cannot rename, reorder, add, or remove modules.
+   If that call fails, the deterministic reason text is used as-is, so the
+   feature never hard-depends on the AI call succeeding.
+5. Waypoints are written to `path_waypoints` (replacing the old set), which
+   is exactly what the Dashboard's `TrailMap` already reads from.
+
+Keeping the model constrained to a closed catalog (rather than freely
+generating course names) is a deliberate choice — it means the path can
+never suggest a module that doesn't actually exist in the curriculum.
 
 ### Integration contract
 

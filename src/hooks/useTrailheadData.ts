@@ -42,7 +42,7 @@ export function useTrailheadData() {
         });
       }
       if (wp && wp.length > 0) {
-        setPath(wp.map((w) => ({ id: w.id, title: w.title, status: w.status, weeks: w.weeks })));
+        setPath(wp.map((w) => ({ id: w.id, title: w.title, status: w.status, weeks: w.weeks, reason: w.reason ?? "" })));
       }
       if (sk && sk.length > 0) setSkills(sk);
       if (act && act.length > 0) setActivity(act.map((a) => ({ day: a.day, minutes: a.minutes })));
