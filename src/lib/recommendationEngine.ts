@@ -1,5 +1,5 @@
 import { Profile, SkillScore, Suggestion } from "./types";
-import { supabaseClient } from "./supabaseClient";
+import { supabase } from "./supabaseClient";
 import { CATALOG, CatalogModule } from "./curriculum";
 
 /**
@@ -24,7 +24,7 @@ const SKILL_CATEGORIES = {
  */
 export async function getSkillScores(userId: string): Promise<SkillScore[]> {
   try {
-    const { data, error } = await supabaseClient
+    const { data, error } = await supabase
       .from("skill_scores")
       .select("skill, value")
       .eq("user_id", userId)
@@ -46,7 +46,7 @@ export async function getOrCreateSkillScore(
   skill: string
 ): Promise<SkillScore> {
   try {
-    const { data: existing } = await supabaseClient
+    const { data: existing } = await supabase
       .from("skill_scores")
       .select("skill, value")
       .eq("user_id", userId)
@@ -58,7 +58,7 @@ export async function getOrCreateSkillScore(
     }
 
     // Create new skill score starting at 0
-    const { data: created, error } = await supabaseClient
+    const { data: created, error } = await supabase
       .from("skill_scores")
       .insert([
         {
@@ -91,7 +91,7 @@ export async function updateSkillScore(
     // Clamp value between 0 and 100
     const clampedValue = Math.max(0, Math.min(100, value));
 
-    const { data, error } = await supabaseClient
+    const { data, error } = await supabase
       .from("skill_scores")
       .upsert(
         [

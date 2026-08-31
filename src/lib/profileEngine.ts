@@ -1,5 +1,5 @@
 import { Profile, ProfileDelta } from "./types";
-import { supabaseClient, supabaseServer } from "./supabaseClient";
+import { supabase } from "./supabaseClient";
 
 /**
  * Profile Engine - Manages student profiles, including:
@@ -19,7 +19,7 @@ export async function getOrCreateProfile(
   initialData?: Partial<Profile>
 ): Promise<Profile> {
   try {
-    const { data: existing, error: fetchError } = await supabaseClient
+    const { data: existing, error: fetchError } = await supabase
       .from("profiles")
       .select("*")
       .eq("user_id", userId)
@@ -43,7 +43,7 @@ export async function getOrCreateProfile(
       xp_to_next: 1000,
     };
 
-    const { data, error } = await supabaseClient
+    const { data, error } = await supabase
       .from("profiles")
       .insert([newProfile])
       .select()
@@ -63,7 +63,7 @@ export async function getOrCreateProfile(
  */
 export async function getProfile(userId: string): Promise<Profile> {
   try {
-    const { data, error } = await supabaseClient
+    const { data, error } = await supabase
       .from("profiles")
       .select("*")
       .eq("user_id", userId)
@@ -108,7 +108,7 @@ export async function updateProfile(
       (key) => dbUpdates[key as keyof typeof dbUpdates] === undefined && delete dbUpdates[key as keyof typeof dbUpdates]
     );
 
-    const { data, error } = await supabaseClient
+    const { data, error } = await supabase
       .from("profiles")
       .update(dbUpdates)
       .eq("user_id", userId)
@@ -182,7 +182,7 @@ export async function addXP(
       finalXPToNext = newXPToNext;
     }
 
-    const { error } = await supabaseClient
+    const { error } = await supabase
       .from("profiles")
       .update({
         xp: finalXP,
@@ -214,7 +214,7 @@ export async function updateStreak(userId: string): Promise<number> {
 
     // Check if activity already logged today
     const today = new Date().toISOString().split("T")[0];
-    const { data: activityData } = await supabaseClient
+    const { data: activityData } = await supabase
       .from("activity_logs")
       .select("minutes")
       .eq("user_id", userId)
@@ -228,7 +228,7 @@ export async function updateStreak(userId: string): Promise<number> {
 
     // Increment streak
     const newStreak = profile.streakDays + 1;
-    const { error } = await supabaseClient
+    const { error } = await supabase
       .from("profiles")
       .update({
         streak_days: newStreak,
@@ -249,7 +249,7 @@ export async function updateStreak(userId: string): Promise<number> {
  */
 export async function resetStreak(userId: string): Promise<void> {
   try {
-    await supabaseClient
+    await supabase
       .from("profiles")
       .update({
         streak_days: 0,
@@ -273,7 +273,7 @@ export async function logActivity(
   try {
     const activityDay = day || new Date().toISOString().split("T")[0];
 
-    const { error: upsertError } = await supabaseClient
+    const { error: upsertError } = await supabase
       .from("activity_logs")
       .upsert(
         [
@@ -306,7 +306,7 @@ export async function getRecentActivity(userId: string): Promise<Array<{day: str
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const { data, error } = await supabaseClient
+    const { data, error } = await supabase
       .from("activity_logs")
       .select("day, minutes")
       .eq("user_id", userId)
@@ -360,7 +360,7 @@ function getDefaultProfile(): Profile {
  */
 export async function getProfilesBatch(userIds: string[]): Promise<Map<string, Profile>> {
   try {
-    const { data, error } = await supabaseClient
+    const { data, error } = await supabase
       .from("profiles")
       .select("*")
       .in("user_id", userIds);
@@ -368,7 +368,7 @@ export async function getProfilesBatch(userIds: string[]): Promise<Map<string, P
     if (error) throw error;
 
     const profileMap = new Map<string, Profile>();
-    (data || []).forEach((row) => {
+    (data || []).forEach((row: any) => {
       profileMap.set(row.user_id, mapRowToProfile(row));
     });
 
