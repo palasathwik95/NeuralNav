@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Compass, Send } from "lucide-react";
+import { Compass, Send, Trash2 } from "lucide-react";
 import { ChatMessage, Profile, ProfileDelta, PathSuggestionPayload } from "@/lib/types";
+import { supabase, DEMO_USER_ID, isSupabaseConfigured } from "@/lib/supabaseClient";
 
 interface ChatPanelProps {
   profile: Profile;
@@ -11,15 +12,44 @@ interface ChatPanelProps {
 }
 
 export default function ChatPanel({ profile, onProfileDelta, onPathSuggestion }: ChatPanelProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      role: "assistant",
-      content: `Hey ${profile.name.split(" ")[0]}, good to see you. You're working toward your goal to ${profile.goal.toLowerCase()}. How's the week gone — did you get through the React module, or did something get in the way?`,
-    },
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Load chat history on mount
+  useEffect(() => {
+    const loadHistory = async () => {
+      try {
+        const res = await fetch("/api/chat");
+        const data = await res.json();
+        if (data.messages && data.messages.length > 0) {
+          setMessages(data.messages.map((m: any) => ({ role: m.role, content: m.content })));
+        } else {
+          // First time - show greeting
+          setMessages([
+            {
+              role: "assistant",
+              content: `Hey ${profile.name.split(" ")[0]}, good to see you. You're working toward your goal to ${profile.goal.toLowerCase()}. How's the week gone — did you get through the React module, or did something get in the way?`,
+            },
+          ]);
+        }
+      } catch {
+        // Fallback to greeting
+        setMessages([
+          {
+            role: "assistant",
+            content: `Hey ${profile.name.split(" ")[0]}, good to see you. You're working toward your goal to ${profile.goal.toLowerCase()}. How's the week gone — did you get through the React module, or did something get in the way?`,
+          },
+        ]);
+      } finally {
+        setLoadingHistory(false);
+      }
+    };
+
+    loadHistory();
+  }, [profile.name, profile.goal]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -51,9 +81,26 @@ export default function ChatPanel({ profile, onProfileDelta, onPathSuggestion }:
 
   const quickReplies = ["I finished it, felt pretty good", "I only got halfway", "Life got busy this week"];
 
+  const clearChatHistory = async () => {
+    if (confirm("Are you sure you want to clear your chat history? This cannot be undone.")) {
+      if (isSupabaseConfigured) {
+        await supabase.from("chat_messages").delete().eq("user_id", DEMO_USER_ID);
+      }
+      setMessages([
+        {
+          role: "assistant",
+          content: `Hey ${profile.name.split(" ")[0]}, good to see you. You're working toward your goal to ${profile.goal.toLowerCase()}. How's the week gone — did you get through the React module, or did something get in the way?`,
+        },
+      ]);
+    }
+  };
+
   return (
     <div className="flex flex-col h-[70vh] max-h-[640px]">
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-1 py-4 flex flex-col gap-3">
+        {loadingHistory && (
+          <div className="text-center py-8 text-trail-faint text-sm">Loading chat history...</div>
+        )}
         {messages.map((m, i) => (
           <div key={i} className={`flex items-end gap-2 ${m.role === "user" ? "justify-end" : "justify-start"}`}>
             {m.role === "assistant" && (
@@ -119,6 +166,13 @@ export default function ChatPanel({ profile, onProfileDelta, onPathSuggestion }:
           } ${loading ? "opacity-60" : ""}`}
         >
           <Send size={16} className={input.trim() ? "text-trail-amberText" : "text-trail-faint"} />
+        </button>
+        <button
+          onClick={clearChatHistory}
+          className="w-[42px] h-[42px] rounded-xl flex items-center justify-center shrink-0 border border-trail-border bg-trail-surface2 hover:bg-trail-surface hover:border-trail-borderStrong transition-colors"
+          title="Clear chat history"
+        >
+          <Trash2 size={16} className="text-trail-muted" />
         </button>
       </div>
     </div>

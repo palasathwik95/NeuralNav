@@ -97,3 +97,34 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+export async function GET(req: NextRequest) {
+  try {
+    if (!isSupabaseServerConfigured) {
+      return NextResponse.json({ messages: [] });
+    }
+
+    const { data, error } = await supabaseServer
+      .from("chat_messages")
+      .select("role, content, created_at")
+      .eq("user_id", DEMO_USER_ID)
+      .order("created_at", { ascending: true })
+      .limit(100);
+
+    if (error) {
+      console.error("Error fetching chat history:", error);
+      return NextResponse.json({ messages: [] });
+    }
+
+    const messages = (data || []).map((msg: any) => ({
+      role: msg.role as "user" | "assistant",
+      content: msg.content,
+      createdAt: msg.created_at,
+    }));
+
+    return NextResponse.json({ messages });
+  } catch (err) {
+    console.error("chat history fetch error", err);
+    return NextResponse.json({ messages: [] });
+  }
+}
