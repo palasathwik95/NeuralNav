@@ -1,11 +1,13 @@
 # Trailhead
 
-Personalized Learning Path Recommender — this repo currently implements three
+Personalized Learning Path Recommender — this repo now implements five
 of the six product features:
 
 - **Conversational Interface** — `src/components/ChatPanel.tsx` + `src/app/api/chat/route.ts`
 - **Student Dashboard** — `src/components/Dashboard.tsx`, `TrailMap.tsx`, `PathDetailsList.tsx`, `SkillRadarChart.tsx`, `ActivityChart.tsx`
 - **Learning Path Generator** — `src/lib/curriculum.ts`, `src/lib/pathGenerator.ts`, `src/app/api/generate-path/route.ts`
+- **Profile Engine** — `src/lib/profileEngine.ts` + `src/app/api/profile/route.ts` — Manages student profiles, XP tracking, streaks, and activity logging
+- **Recommendation Engine** — `src/lib/recommendationEngine.ts` + `src/app/api/recommendations/route.ts` — Provides skill-based recommendations and analyzes skill gaps
 
 Stack: Next.js (App Router) + React + TypeScript + Tailwind CSS + Supabase
 (Postgres) + OpenAI API + Recharts, deployable to Vercel.
@@ -38,9 +40,75 @@ stay demoable independent of backend progress.
 | Conversational Interface | **You** | `ChatPanel.tsx` + `/api/chat` |
 | Student Dashboard | **You** | `Dashboard.tsx` + chart/trail components |
 | Learning Path Generator | **You** | `pathGenerator.ts`, `curriculum.ts` + `/api/generate-path` |
-| Profile Engine | Teammate | Reads/writes the `profiles` table |
-| Recommendation Engine | Teammate | Writes `skill_scores`, feeds suggestion logic |
-| AI Assistant (broader) | Teammate | May extend the same `/api/chat` route or add new ones |
+| Profile Engine | **✓ Implemented** | `profileEngine.ts` + `/api/profile` — Manages profiles, XP, streaks, activity |
+| Recommendation Engine | **✓ Implemented** | `recommendationEngine.ts` + `/api/recommendations` — Skill scores & suggestions |
+| AI Assistant (broader) | In Progress | May extend the same `/api/chat` route or add new ones |
+
+## Profile Engine
+
+The Profile Engine (`src/lib/profileEngine.ts` + `src/app/api/profile/route.ts`) manages:
+
+- **Profile Management** — Create, read, update student profiles with goals, interests, and learning preferences
+- **XP & Leveling** — Track experience points, auto-level up when thresholds are reached
+- **Streak Tracking** — Maintain consecutive days of activity, reset on missed days
+- **Activity Logging** — Log study minutes per day with automatic streak updates
+- **Profile Deltas** — Apply incremental changes from chat or system updates
+
+### Profile API
+
+- `GET /api/profile` — Get current user's profile (auto-create if doesn't exist)
+- `POST /api/profile` — Create profile with initial data
+- `PATCH /api/profile` — Update profile or apply delta (incremental changes)
+- `PUT /api/profile?action=xp` — Add XP and handle level ups
+- `PUT /api/profile?action=streak` — Update activity streak
+- `PUT /api/profile?action=activity` — Log activity for a day
+- `GET /api/profile/activity` — Get recent activity logs (last 30 days)
+
+## Recommendation Engine
+
+The Recommendation Engine (`src/lib/recommendationEngine.ts` + `src/app/api/recommendations/route.ts`) provides:
+
+- **Skill Scoring** — Track 0-100 skill proficiency across multiple domains
+- **Skill Gap Analysis** — Identify weak areas based on learning goal and catalog
+- **Personalized Recommendations** — Suggest courses based on profile + skills + interests
+- **Next Step Guidance** — Recommend natural progression after course completion
+- **Skill Overview** — Display top skills and average proficiency level
+
+### Recommendation API
+
+- `GET /api/recommendations` — Get personalized course recommendations (default)
+- `GET /api/recommendations?type=gaps` — Analyze skill gaps
+- `GET /api/recommendations?type=overview` — Get skill overview (top skills + average)
+- `GET /api/recommendations?type=nextSteps&moduleId=X` — Get next step after module
+- `GET /api/recommendations?type=skills` — Get all skill scores
+- `POST /api/recommendations` — Update skill scores (action: `updateSkill`, `batchUpdateSkills`)
+
+### Integration
+
+Use the `useProfileAndRecommendations` hook in React components to access both engines:
+
+```typescript
+const {
+  profile,
+  skills,
+  recommendations,
+  skillOverview,
+  updateProfile,
+  addXP,
+  updateSkill,
+  refresh,
+} = useProfileAndRecommendations();
+```
+
+Display recommendations with the `RecommendationsPanel` component:
+
+```typescript
+<RecommendationsPanel
+  recommendations={recommendations}
+  skillOverview={skillOverview}
+  onSelectRecommendation={handleSelect}
+/>
+```
 
 ### How the Learning Path Generator works
 
